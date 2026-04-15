@@ -56,8 +56,12 @@
  * ```
  *
  * This sets up the reactive system, but does not yet replace any elements further down in the DOM. To do that,
- * we provide a function that takes an `&`[`Element`] and optionally returns an
- * [`FnOnce`]`() -> impl `[`IntoView`]`+'static`, if the element should be changed. This function is then passed to
+ * we provide a function that takes an `&`[`Element`] and returns a pair
+ * <code>([Option]<[FnOnce]() -> impl [IntoView]+'static>,[Option]<[FnOnce]() + 'static>)</code>.
+ * The first function is used to insert a leptos View, if the element should be changed,
+ * the second function will be used after we have finished iterating over the element, in case
+ * we want to do some cleanup or update signals afterwards.
+ * This function is then passed to
  * [`DomChildrenCont`], which will iterate over all children of the replaced element and replace them with the
  * provided function.
  *
@@ -65,11 +69,11 @@
  * `MyReplacementComponent`:
  *
  * ```
- *  fn replace(e:&Element) -> Option<impl FnOnce() -> AnyView> {
- *    e.get_attribute("data-replace-with-leptos").map(|_| {
+ *  fn replace(e:&Element) -> (Option<impl FnOnce() -> AnyView>,Option<fn()>) {
+ *    (e.get_attribute("data-replace-with-leptos").map(|_| {
  *      let orig: OriginalNode = e.clone().into();
  *      || view!(<MyReplacementComponent orig/>).into_any()
- *    })
+ *    }),None)
  *  }
  *
  *  #[component]
@@ -91,7 +95,7 @@
  * ```
  *
  * ...now, `replace` will get called on every element of the DOM, including those that were "moved around" in
- * earlier `MyReplacementComponent`s, respecting the proper reactive graph (regardin signal inheritance etc.).
+ * earlier `MyReplacementComponent`s, respecting the proper reactive graph (regarding signal inheritance etc.).
  *
  * ### SSR Example
  *
@@ -120,11 +124,9 @@
 mod dom;
 mod node;
 
-pub use node::OriginalNode;
-
 pub use dom::hydrate_node;
-
 use leptos::{html::Span, math::Mrow, prelude::*, web_sys::Element};
+pub use node::OriginalNode;
 
 /// A component that calls `cont` on `orig` and all its children,
 /// potentially "hydrating" them further, and reinserts the original
